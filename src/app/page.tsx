@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 type EmailExistsResponse = { exists: boolean };
@@ -54,7 +54,7 @@ export default function ClientLoginPage() {
         body: { email: email.trim(), password }
       });
 
-      setToken(res.token);
+      setAuth(res.token, res.user);
       router.push("/agendamentos");
     } catch (e) {
       setError("Email ou senha estão errados");

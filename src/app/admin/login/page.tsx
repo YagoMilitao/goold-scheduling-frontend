@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setAuth } from "@/lib/auth";
 
 type LoginResponse = {
   token: string;
@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
         body: { email, password }
       });
 
-      setToken(res.token);
+      setAuth(res.token, res.user);
       router.push("/admin/agendamentos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao logar");

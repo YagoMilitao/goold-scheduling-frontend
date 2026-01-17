@@ -1,34 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { setAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+
+type RegisterResponse = {
+  token: string;
+  user: { id: number; name: string; email: string; role: "ADMIN" | "CLIENT" };
+};
+
+type ViaCepResponse = {
+  erro?: boolean;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+};
+
+const onlyDigits = (v: string) => v.replace(/\D/g, "");
+
+const formatCep = (v: string) => {
+  const d = onlyDigits(v).slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+};
 
 export default function CadastroPage() {
   const router = useRouter();
 
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
 
+  const [cep, setCep] = useState("");
+  const [address, setAddress] = useState("");
+  const [number, setNumber] = useState("");
+  const [complement, setComplement] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+
+  const [cepLoading, setCepLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
+
+  const cepDigits = useMemo(() => onlyDigits(cep), [cep]);
+
+  const requiredOk = useMemo(() => {
+    const baseOk = firstName.trim() && lastName.trim() && email.trim() && password.trim() && cepDigits.length === 8;
+    const addrOk = address.trim() && neighborhood.trim() && city.trim() && state.trim();
+    return !!(baseOk && addrOk && !cepLoading);
+  }, [firstName, lastName, email, password, cepDigits, address, neighborhood, city, state, cepLoading]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (cepDigits.length !== 8) return;
+
+      setError(null);
+      setCepLoading(true);
+
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+        const data = (await res.json()) as ViaCepResponse;
+
+        if (data.erro) {
+          setAddress("");
+          setNeighborhood("");
+          setCity("");
+          setState("");
+          setError("CEP inválido");
+          return;
+        }
+
+        setAddress(data.logradouro ?? "");
+        setNeighborhood(data.bairro ?? "");
+        setCity(data.localidade ?? "");
+        setState(data.uf ?? "");
+      } catch {
+        setError("Erro ao buscar CEP");
+      } finally {
+        setCepLoading(false);
+      }
+    };
+
+    run();
+  }, [cepDigits]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setOk(null);
+
+    if (!requiredOk) {
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await apiFetch("/auth/register", {
+      const res = await apiFetch<RegisterResponse>("/auth/register", {
         method: "POST",
-        body: { name: name.trim(), email: email.trim(), password }
+        body: {
+          name: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          password,
+          cep: formatCep(cep),
+          address: address.trim(),
+          neighborhood: neighborhood.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          number: number.trim() || undefined,
+          complement: complement.trim() || undefined
+        }
       });
 
-      setOk("Cadastro criado. Agora faça login.");
-      setTimeout(() => router.push("/"), 600);
+      setAuth(res.token, res.user);
+      router.push("/agendamentos");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao cadastrar");
     } finally {
@@ -37,60 +129,142 @@ export default function CadastroPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f1ed]">
+    <div className="min-h-screen bg-black">
       <header className="flex items-center justify-between px-10 py-6">
-        <div className="h-10 w-10 rounded-full bg-black/10" />
-        <button className="rounded-xl border px-10 py-3 font-medium" type="button" onClick={() => router.push("/")}>
-          Voltar
+        <div className="h-10 w-10 rounded-full bg-white/10" />
+        <button className="text-white" type="button" onClick={() => router.push("/")}>
+          Login
         </button>
       </header>
 
-      <main className="flex min-h-[calc(100vh-96px)] items-start justify-center px-6 pt-24">
-        <div className="w-full max-w-md">
-          <h1 className="text-center text-3xl font-semibold text-black">Cadastre-se</h1>
-
-          <div className="mt-10 rounded-2xl border border-black/10 bg-white px-8 py-8 shadow-sm">
-            <form onSubmit={onSubmit} className="space-y-5">
+      <main className="flex items-start justify-center px-6 pb-16">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8">
+          <form onSubmit={onSubmit} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm text-black">Nome</label>
+                <label className="text-sm">
+                  Nome <span className="opacity-60">(Obrigatorio)</span>
+                </label>
                 <input
-                  className="w-full rounded-xl border border-black/15 px-4 py-3 outline-none"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-xl border px-4 py-3 outline-none"
+                  placeholder="ex. Jose"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-black">E-mail</label>
+                <label className="text-sm">
+                  Sobrenome <span className="opacity-60">(Obrigatorio)</span>
+                </label>
                 <input
-                  className="w-full rounded-xl border border-black/15 px-4 py-3 outline-none"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
+                  className="w-full rounded-xl border px-4 py-3 outline-none"
+                  placeholder="ex. Lima"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   required
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-sm text-black">Senha</label>
+            <div className="space-y-2">
+              <label className="text-sm">
+                E-mail <span className="opacity-60">(Obrigatorio)</span>
+              </label>
+              <input
+                className="w-full rounded-xl border px-4 py-3 outline-none"
+                placeholder="Insira seu e-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">
+                Senha de acesso <span className="opacity-60">(Obrigatorio)</span>
+              </label>
+              <div className="relative">
                 <input
-                  className="w-full rounded-xl border border-black/15 px-4 py-3 outline-none"
+                  className="w-full rounded-xl border px-4 py-3 pr-12 outline-none"
+                  placeholder="Insira sua senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  type="password"
+                  type={showPass ? "text" : "password"}
                   required
                 />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border px-2 py-1 text-sm"
+                  onClick={() => setShowPass((p) => !p)}
+                  aria-label="Mostrar senha"
+                >
+                  {showPass ? "🙈" : "👁️"}
+                </button>
               </div>
+            </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              {ok && <p className="text-sm text-green-700">{ok}</p>}
+            <div className="space-y-2">
+              <label className="text-sm">
+                CEP <span className="opacity-60">(Obrigatorio)</span>
+              </label>
+              <input
+                className="w-full rounded-xl border px-4 py-3 outline-none"
+                placeholder="Insira seu CEP"
+                value={cep}
+                onChange={(e) => setCep(formatCep(e.target.value))}
+                inputMode="numeric"
+                required
+              />
+            </div>
 
-              <button className="w-full rounded-xl bg-black px-4 py-4 font-semibold text-white disabled:opacity-60" disabled={loading}>
-                {loading ? "Criando..." : "Criar conta"}
-              </button>
-            </form>
-          </div>
+            <div className="space-y-2">
+              <label className="text-sm">Endereço</label>
+              <input className="w-full rounded-xl border bg-gray-100 px-4 py-3 outline-none" value={address} readOnly />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Número</label>
+              <input className="w-full rounded-xl border px-4 py-3 outline-none" value={number} onChange={(e) => setNumber(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Complemento</label>
+              <input
+                className="w-full rounded-xl border px-4 py-3 outline-none"
+                value={complement}
+                onChange={(e) => setComplement(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Bairro</label>
+              <input className="w-full rounded-xl border bg-gray-100 px-4 py-3 outline-none" value={neighborhood} readOnly />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Cidade</label>
+              <input className="w-full rounded-xl border bg-gray-100 px-4 py-3 outline-none" value={city} readOnly />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm">Estado</label>
+              <input className="w-full rounded-xl border bg-gray-100 px-4 py-3 outline-none" value={state} readOnly />
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {cepLoading && <p className="text-sm opacity-70">Buscando CEP...</p>}
+
+            <button
+              className={`w-full rounded-xl px-4 py-4 font-semibold text-white ${requiredOk ? "bg-black" : "bg-gray-300"}`}
+              disabled={!requiredOk || loading}
+              type="submit"
+            >
+              {loading ? "Cadastrando..." : "Cadastrar-se"}
+            </button>
+          </form>
         </div>
       </main>
     </div>

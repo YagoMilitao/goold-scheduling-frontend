@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import AdminGuard from "@/components/AdminGuard";
 import SchedulingSettingsModal from "@/components/SchedulingSettingsModal";
 import { apiFetch } from "@/lib/api";
-import { clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { clearAuth } from "@/lib/auth";
 
 type BookingItem = {
   id: number;
@@ -100,7 +100,7 @@ export default function AdminAgendamentosPage() {
   };
 
   const onLogout = () => {
-    clearToken();
+    clearAuth();
     router.replace("/admin/login");
   };
 
