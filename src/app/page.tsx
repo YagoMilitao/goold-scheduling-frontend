@@ -57,7 +57,7 @@ export default function ClientLoginPage() {
       setAuth(res.token, res.user);
       router.push("/agendamentos");
     } catch (e) {
-      setError("Email ou senha estão errados");
+      setError(`Email ou senha estão errados ${e}`);
     } finally {
       setLoading(false);
     }

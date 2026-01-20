@@ -59,6 +59,7 @@ export default function BookingsTable({
 
         <tbody>
           {items.map((b) => (
+            
             <tr key={b.id} className={`border-b ${rowClass[b.status]}`}>
               <td className="py-5 pr-4">{formatBR(b.scheduledAt)}</td>
 
@@ -82,14 +83,16 @@ export default function BookingsTable({
               </td>
 
               <td className="py-5 pl-4 text-right">
-                <button
-                  type="button"
-                  onClick={() => onCancel(b.id)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white"
-                  aria-label="Cancelar"
-                >
-                  ✕
-                </button>
+                 {b.status !== "CANCELADO" && (
+                  <button
+                    type="button"
+                    onClick={() => onCancel(b.id)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white"
+                    aria-label="Cancelar"
+                  >
+                    ✕
+                  </button>
+                )}
               </td>
             </tr>
           ))}

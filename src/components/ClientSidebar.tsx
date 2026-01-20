@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
 import { clearAuth, getUser } from "@/lib/auth";
 import { clear } from "console";
 import { usePathname, useRouter } from "next/navigation";
@@ -33,10 +34,16 @@ export default function ClientSidebar() {
 
   const go = (p: string) => router.push(p);
 
-  const onLogout = () => {
+  const onLogout = async () => {
+  try {
+    await apiFetch("/auth/logout", { method: "POST", auth: true });
+  } catch {
+
+  } finally {
     clearAuth();
     router.replace("/");
-  };
+  }
+};
 
   return (
     <aside className="w-[280px] border-r bg-[#f5f1ed]">

@@ -13,6 +13,20 @@ export const setAuth = (token: string, user: AuthUser) => {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
 
+export const updateStoredUser = (patch: Partial<AuthUser>) => {
+  if (typeof window === "undefined") return;
+
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return;
+
+  try {
+    const current = JSON.parse(raw) as AuthUser;
+    const next = { ...current, ...patch };
+    localStorage.setItem(USER_KEY, JSON.stringify(next));
+  } catch {}
+};
+
+
 export const getToken = () => {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);

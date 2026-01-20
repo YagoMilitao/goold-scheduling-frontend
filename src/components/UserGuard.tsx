@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GuardLoading from "./GuardLoading";
 import { getToken, getUser } from "@/lib/auth";
@@ -9,31 +9,31 @@ import { getToken, getUser } from "@/lib/auth";
 export default function UserGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-
-  const auth = useMemo(() => {
-    const token = getToken();
-    const user = getUser();
-    return { token, user };
-  }, []);
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
 
-    if (!auth.token || !auth.user) {
-      router.replace("/login");
+    const token = getToken();
+    const user = getUser();
+
+    if (!token || !user) {
+      setAllowed(false);
+      router.replace("/");
       return;
     }
 
-    if (auth.user.role !== "CLIENT") {
+    if (user.role !== "CLIENT") {
+      setAllowed(false);
       router.replace("/admin/login");
       return;
     }
-  }, [router, auth.token, auth.user]);
+
+    setAllowed(true);
+  }, [router]);
 
   if (!mounted) return <GuardLoading />;
-
-  if (!auth.token || !auth.user) return null;
-  if (auth.user.role !== "CLIENT") return null;
+  if (!allowed) return null;
 
   return <>{children}</>;
 }
