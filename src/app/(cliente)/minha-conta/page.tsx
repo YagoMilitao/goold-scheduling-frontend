@@ -31,7 +31,7 @@ type ViaCepResponse = {
 };
 
 const onlyDigits = (v: string) => v.replace(/\D/g, "");
-const pad2 = (n: number) => String(n).padStart(2, "0");
+
 
 const formatCep = (v: string) => {
   const d = onlyDigits(v).slice(0, 8);

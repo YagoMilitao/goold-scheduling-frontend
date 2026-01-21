@@ -6,7 +6,7 @@ import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/EmptyState";
 import { apiFetch } from "@/lib/api";
 
-type ClientItem = {
+type ApiClientItem = {
   id: number;
   createdAt: string;
   name: string;
@@ -17,17 +17,32 @@ type ClientItem = {
   neighborhood: string | null;
   city: string | null;
   state: string | null;
+  isActive: boolean;
+  canViewBookings: boolean;
+  canViewLogs: boolean;
+};
+
+type ListResponse = {
+  items: ApiClientItem[];
+};
+
+type ClientRow = {
+  id: number;
+  createdAt: string;
+  name: string;
+  lastName: string | null;
+  address: string | null;
+  number: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
   permissions: {
     canViewBookings: boolean;
     canViewLogs: boolean;
   };
   status: {
-    visibleToClient: boolean;
+    isActive: boolean;
   };
-};
-
-type ListResponse = {
-  items: ClientItem[];
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -63,7 +78,7 @@ const abbreviateStreet = (street: string) => {
   return s;
 };
 
-const formatAddressLine = (c: ClientItem) => {
+const formatAddressLine = (c: ClientRow) => {
   const street = c.address ? abbreviateStreet(c.address) : "";
   const num = c.number?.trim() ? `n°${c.number.trim()}` : "";
   const bairro = c.neighborhood?.trim() ? c.neighborhood.trim() : "";
@@ -78,19 +93,39 @@ const formatAddressLine = (c: ClientItem) => {
   return line || "-";
 };
 
+const toRow = (x: ApiClientItem): ClientRow => ({
+  id: x.id,
+  createdAt: x.createdAt,
+  name: x.name,
+  lastName: x.lastName,
+  address: x.address,
+  number: x.number,
+  neighborhood: x.neighborhood,
+  city: x.city,
+  state: x.state,
+  permissions: {
+    canViewBookings: !!x.canViewBookings,
+    canViewLogs: !!x.canViewLogs
+  },
+  status: {
+    isActive: !!x.isActive
+  }
+});
+
 export default function AdminClientesPage() {
   const router = useRouter();
 
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<ClientItem[]>([]);
+  const [items, setItems] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiFetch<ListResponse>(`/admin/clients?order=${order}`, { auth: true });
-      setItems(res.items ?? []);
+      const mapped = (res.items ?? []).map(toRow);
+      setItems(mapped);
     } finally {
       setLoading(false);
     }
@@ -112,21 +147,32 @@ export default function AdminClientesPage() {
 
   const onToggleOrder = () => setOrder((p) => (p === "asc" ? "desc" : "asc"));
 
-  const patchClient = useCallback(
-    async (id: number, patch: Partial<ClientItem>) => {
-      setItems((prev) => prev.map((x) => (x.id === id ? ({ ...x, ...patch } as ClientItem) : x)));
+  const optimisticUpdate = useCallback((id: number, patch: Partial<ClientRow>) => {
+    setItems((prev) => prev.map((x) => (x.id === id ? ({ ...x, ...patch } as ClientRow) : x)));
+  }, []);
+
+  const onToggleBookingsPermission = useCallback(
+    async (id: number) => {
+      const current = items.find((x) => x.id === id);
+      if (!current) return;
+
+      const next = !current.permissions.canViewBookings;
+
+      optimisticUpdate(id, {
+        permissions: { ...current.permissions, canViewBookings: next }
+      });
 
       try {
-        await apiFetch(`/admin/clients/${id}`, {
+        await apiFetch(`/admin/clients/${id}/permissions`, {
           method: "PATCH",
           auth: true,
-          body: patch
+          body: { permission: "canViewBookings" }
         });
       } catch {
         await load();
       }
     },
-    [load]
+    [items, optimisticUpdate, load]
   );
 
   const onToggleLogsPermission = useCallback(
@@ -136,48 +182,44 @@ export default function AdminClientesPage() {
 
       const next = !current.permissions.canViewLogs;
 
-      await patchClient(id, {
-        permissions: {
-          ...current.permissions,
-          canViewLogs: next
-        }
+      optimisticUpdate(id, {
+        permissions: { ...current.permissions, canViewLogs: next }
       });
+
+      try {
+        await apiFetch(`/admin/clients/${id}/permissions`, {
+          method: "PATCH",
+          auth: true,
+          body: { permission: "canViewLogs" }
+        });
+      } catch {
+        await load();
+      }
     },
-    [items, patchClient]
+    [items, optimisticUpdate, load]
   );
 
-  const onToggleBookingsPermission = useCallback(
+  const onToggleActive = useCallback(
     async (id: number) => {
       const current = items.find((x) => x.id === id);
       if (!current) return;
 
-      const next = !current.permissions.canViewBookings;
+      const next = !current.status.isActive;
 
-      await patchClient(id, {
-        permissions: {
-          ...current.permissions,
-          canViewBookings: next
-        }
+      optimisticUpdate(id, {
+        status: { ...current.status, isActive: next }
       });
+
+      try {
+        await apiFetch(`/admin/clients/${id}/status`, {
+          method: "PATCH",
+          auth: true
+        });
+      } catch {
+        await load();
+      }
     },
-    [items, patchClient]
-  );
-
-  const onToggleVisible = useCallback(
-    async (id: number) => {
-      const current = items.find((x) => x.id === id);
-      if (!current) return;
-
-      const next = !current.status.visibleToClient;
-
-      await patchClient(id, {
-        status: {
-          ...current.status,
-          visibleToClient: next
-        }
-      });
-    },
-    [items, patchClient]
+    [items, optimisticUpdate, load]
   );
 
   const toolbar = (
@@ -185,7 +227,12 @@ export default function AdminClientesPage() {
       <div className="flex flex-1 items-center gap-3">
         <div className="flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3">
           <span className="h-4 w-4 rounded bg-black/10" />
-          <input className="w-full outline-none" placeholder="Filtre por nome" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input
+            className="w-full outline-none"
+            placeholder="Filtre por nome"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
         </div>
 
         <div className="flex w-52 items-center justify-between rounded-xl border px-4 py-3 text-black/60">
@@ -232,8 +279,18 @@ export default function AdminClientesPage() {
                 <th className="text-left p-4">
                   <div className="flex items-center gap-3">
                     <span>Data de cadastro</span>
-                    <button className="rounded-lg border px-3 py-1 text-sm" onClick={onToggleOrder} type="button" title="Alternar ordem de classificação" aria-label="Alternar ordem de classificação">
-                      {order === "asc" ? "Crescente" : "Decrescente"}
+                    <button
+                      type="button"
+                      onClick={onToggleOrder}
+                      title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
+                      aria-label="Alternar ordem"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-black/70 hover:bg-black/5"
+                    >
+                      <img
+                        src="/icons/ArrowsDownUpIcon.svg"
+                        alt=""
+                        className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`}
+                      />
                     </button>
                   </div>
                 </th>
@@ -296,8 +353,14 @@ export default function AdminClientesPage() {
                     </td>
 
                     <td className="p-4">
-                      <button type="button" onClick={() => onToggleVisible(c.id)} className={`${toggleBase} ${c.status.visibleToClient ? toggleOn : toggleOff}`} title={c.status.visibleToClient ? "Ocultar cliente" : "Mostrar cliente"} aria-label={c.status.visibleToClient ? "Ocultar cliente" : "Mostrar cliente"}>
-                        <span className={`${dotBase} ${c.status.visibleToClient ? dotOn : dotOff}`} />
+                      <button
+                        type="button"
+                        onClick={() => onToggleActive(c.id)}
+                        className={`${toggleBase} ${c.status.isActive ? toggleOn : toggleOff}`}
+                        title={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
+                        aria-label={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
+                      >
+                        <span className={`${dotBase} ${c.status.isActive ? dotOn : dotOff}`} />
                       </button>
                     </td>
                   </tr>
