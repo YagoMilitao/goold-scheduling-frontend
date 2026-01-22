@@ -85,6 +85,7 @@ export default function ClientLoginPage() {
     setPassword("");
     setError(null);
   }, [email]);
+  console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
 
   return (
     <div className="min-h-screen bg-[#f5f1ed]">
