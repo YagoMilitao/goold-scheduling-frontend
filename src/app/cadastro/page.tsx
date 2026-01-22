@@ -197,11 +197,15 @@ export default function CadastroPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border px-2 py-1 text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 text-sm"
                   onClick={() => setShowPass((p) => !p)}
                   aria-label="Mostrar senha"
                 >
-                  {showPass ? "🙈" : "👁️"}
+                  <img
+                    src={showPass ? "/icons/eye_slash.svg" : "/icons/eye.svg"}
+                    alt=""
+                    className="h-4 w-4 opacity-70"
+                  />
                 </button>
               </div>
             </div>

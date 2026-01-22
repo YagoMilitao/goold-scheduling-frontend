@@ -90,7 +90,9 @@ export default function ClientLoginPage() {
   return (
     <div className="min-h-screen bg-[#f5f1ed]">
       <header className="flex items-center justify-between px-10 py-6">
-        <div className="h-10 w-10 rounded-full bg-black/10" />
+        <div className="h-10 w-10">
+          <img src="/icons/group_logo.svg" alt="Logo" className="h-10 w-auto" />
+        </div>
         <button
           className="rounded-xl bg-black px-10 py-3 font-medium text-white"
           type="button"
@@ -102,7 +104,9 @@ export default function ClientLoginPage() {
 
       <main className="flex min-h-[calc(100vh-96px)] items-start justify-center px-6 pt-24">
         <div className="w-full max-w-md">
-          <h1 className="text-center text-3xl font-semibold text-black">Entre na sua conta</h1>
+          <h1 className="text-center text-3xl font-semibold text-black">
+            Entre na sua conta
+          </h1>
 
           <div className="mt-10 rounded-2xl border border-black/10 bg-white px-8 py-8 shadow-sm">
             <form onSubmit={onSubmit} className="space-y-5">
@@ -140,7 +144,11 @@ export default function ClientLoginPage() {
                       onClick={() => setShowPass((p) => !p)}
                       aria-label="Mostrar senha"
                     >
-                      {showPass ? "/icons/eye_slash.svg" : "/icons/eye.svg"}
+                      <img
+                        src={showPass ? "/icons/eye_slash.svg" : "/icons/eye.svg"}
+                        alt=""
+                        className="h-4 w-4 opacity-70"
+                      />
                     </button>
                   </div>
                 </div>
