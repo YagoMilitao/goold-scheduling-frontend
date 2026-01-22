@@ -43,7 +43,7 @@ export default function useAgendarViewModel() {
     setError(null);
 
     try {
-      const res = await apiFetch<RoomsResponse>("/admin/rooms", { auth: true });
+      const res = await apiFetch<RoomsResponse>("/rooms", { auth: true });
       const list = res.items ?? [];
       setRooms(list);
 
