@@ -1,9 +1,10 @@
 "use client";
 
-import PageShell from "@/components/PageShell";
-import EmptyState from "@/components/EmptyState";
+import PageShell from "@/components/ui/PageShell";
+import EmptyState from "@/components/ui/EmptyState";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import useAdminLogsViewModel, { moduleIconSrc, moduleLabel } from "./useAdminLogsViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -73,7 +74,7 @@ export default function AdminLogsPage() {
   return (
     <PageShell title="Logs" subtitle="Acompanhe todos as Logs de clientes" toolbar={toolbar} footer={footer}>
       {vm.loading ? (
-        <div className="h-full w-full rounded-2xl border p-6">Carregando...</div>
+        <GuardLoading />
       ) : vm.filteredCount === 0 ? (
         <EmptyState title="Nenhum log encontrado" />
       ) : (

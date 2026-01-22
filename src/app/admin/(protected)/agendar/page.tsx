@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import UserGuard from "@/components/UserGuard";
+import UserGuard from "@/components/client/UserGuard";
 import useAgendarViewModel from "./useAgendarViewModel";
 
 export default function AgendarPage() {

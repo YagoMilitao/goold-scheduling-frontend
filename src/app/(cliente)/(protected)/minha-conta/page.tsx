@@ -1,7 +1,8 @@
 "use client";
 
-import PageShell from "@/components/PageShell";
+import PageShell from "@/components/ui/PageShell";
 import { useMinhaContaViewModel } from "./useMinhaContaViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 export default function MinhaContaPage() {
   const vm = useMinhaContaViewModel();
@@ -20,9 +21,7 @@ export default function MinhaContaPage() {
   if (vm.loading) {
     return (
       <PageShell title="Minha conta" subtitle="Ajuste informações da sua conta de forma simples" toolbar={toolbar}>
-        <div className="h-full w-full rounded-2xl border p-6" style={borderColor}>
-          Carregando...
-        </div>
+        <GuardLoading />
       </PageShell>
     );
   }

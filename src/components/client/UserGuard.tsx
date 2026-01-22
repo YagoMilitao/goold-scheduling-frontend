@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import GuardLoading from "./GuardLoading";
+import GuardLoading from "../ui/GuardLoading";
 import { getToken, getUser } from "@/lib/auth";
 
 export default function UserGuard({ children }: { children: React.ReactNode }) {

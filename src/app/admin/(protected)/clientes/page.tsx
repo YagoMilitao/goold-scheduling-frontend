@@ -1,9 +1,10 @@
 "use client";
 
-import PageShell from "@/components/PageShell";
-import EmptyState from "@/components/EmptyState";
+import PageShell from "@/components/ui/PageShell";
+import EmptyState from "@/components/ui/EmptyState";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import useAdminClientesViewModel, { ClientRow } from "./useAdminClientesViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -118,13 +119,13 @@ export default function AdminClientesPage() {
   return (
     <PageShell title="Clientes" subtitle="Overview de todos os clientes" toolbar={toolbar} footer={footer}>
       {vm.loading ? (
-        <div className="p-6">Carregando...</div>
+        <GuardLoading />
       ) : vm.items.length === 0 ? (
         <EmptyState title="Nenhum cliente encontrado" />
       ) : (
         <div className="border-t" style={{ borderColor: "#D7D7D7" }}>
-          <div className="px-[30px]">
-            <table className="w-full min-w-[1100px] border-collapse">
+          <div className="px-7.5">
+            <table className="w-full min-w-275 border-collapse">
               <thead>
                 <tr className="text-sm text-black/70" style={{ borderBottom: "1px solid #D7D7D7" }}>
                   <th className="py-5 pr-6 text-left font-medium">

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import PageShell from "@/components/PageShell";
-import SchedulingSettingsModal from "@/components/SchedulingSettingsModal";
+import PageShell from "@/components/ui/PageShell";
+import SchedulingSettingsModal from "@/components/ui/SchedulingSettingsModal";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import useAdminAgendamentosViewModel from "./useAdminAgendamentosViewModel";
 

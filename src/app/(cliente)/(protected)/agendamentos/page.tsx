@@ -1,11 +1,12 @@
 "use client";
 
-import PageShell from "@/components/PageShell";
-import EmptyState from "@/components/EmptyState";
+import PageShell from "@/components/ui/PageShell";
+import EmptyState from "@/components/ui/EmptyState";
 import BookingsTable from "@/components/booking/BookingTable";
 import NewBookingModal from "@/components/booking/NewBookingModal";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import { useAgendamentosViewModel } from "./useAgendamentosViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 
 export default function AgendamentosPage() {
@@ -89,9 +90,7 @@ export default function AgendamentosPage() {
       footer={footer}
     >
       {vm.loading ? (
-        <div className="h-full w-full rounded-2xl border p-6">
-          Carregando...
-        </div>
+        <GuardLoading />
       ) : vm.pagedItems.length === 0 ? (
         <EmptyState title="Nada por aqui ainda..." />
       ) : (

@@ -1,9 +1,10 @@
 "use client";
 
-import PageShell from "@/components/PageShell";
-import EmptyState from "@/components/EmptyState";
+import PageShell from "@/components/ui/PageShell";
+import EmptyState from "@/components/ui/EmptyState";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import { useLogsViewModel } from "./useLogsViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 const moduleMeta = {
   AGENDAMENTOS: { label: "Agendamento", icon: "/icons/bookings_logo.svg" },
@@ -86,7 +87,7 @@ export default function LogsPage() {
       {vm.error && <p className="mb-4 text-sm text-red-600">{vm.error}</p>}
 
       {vm.loading ? (
-        <div className="p-6">Carregando...</div>
+        <GuardLoading />
       ) : vm.pagedItems.length === 0 ? (
         <EmptyState title="Nada por aqui ainda..." />
       ) : (
