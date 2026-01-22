@@ -283,13 +283,13 @@ export default function MinhaContaPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass((p) => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white"
                   style={borderColor}
                   aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
                   title={showPass ? "Ocultar senha" : "Mostrar senha"}
                 >
                   <img
-                    src={showPass ? "/icons/eye-off.svg" : "/icons/eye.svg"}
+                    src={showPass ? "/icons/eye_slash.svg" : "/icons/eye.svg"}
                     alt=""
                     className="h-4 w-4 opacity-70"
                   />

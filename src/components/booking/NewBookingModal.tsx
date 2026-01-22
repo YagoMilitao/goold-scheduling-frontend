@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Modal from "@/components/ui/Modal";
+import DateFilter from "../ui/DateFilterSelect";
 
 type RoomAvail = {
   id: number;
@@ -80,6 +81,8 @@ export default function NewBookingModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
 
   const stepMinutes = 30;
 
@@ -198,16 +201,16 @@ export default function NewBookingModal({
           <label className="text-sm">
             Selecione uma <span className="font-semibold">data</span> <span className="opacity-60">(Obrigatório)</span>
           </label>
-          <div className="relative">
-            <input
-              className="w-full rounded-xl border px-4 py-3 pr-10 outline-none"
-              type="date"
-              min={todayISO()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+          <DateFilter
+                      value={date}
+                      onChange={(v) => {
+                        setDate(v);
+                        setPage(1);
+                      }}
+                      placeholder="Selecione"
+                      iconSrc="/icons/bookings_logo.svg"
+                      className="w-[full]! py-3 outline-none"
             />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60">📅</span>
-          </div>
         </div>
 
         <div className="space-y-2">

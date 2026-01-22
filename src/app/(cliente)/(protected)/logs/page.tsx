@@ -130,7 +130,7 @@ export default function LogsPage() {
       </button>
 
       <span className="rounded-lg border px-4 py-2">
-        {page} / {totalPages}
+        {page}
       </span>
 
       <button

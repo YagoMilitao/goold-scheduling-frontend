@@ -135,11 +135,11 @@ export default function ClientLoginPage() {
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border border-black/10 px-2 py-1 text-sm"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border-black/10 px-2 py-1 text-sm"
                       onClick={() => setShowPass((p) => !p)}
                       aria-label="Mostrar senha"
                     >
-                      {showPass ? "🙈" : "👁️"}
+                      {showPass ? "/icons/eye_slash.svg" : "/icons/eye.svg"}
                     </button>
                   </div>
                 </div>
