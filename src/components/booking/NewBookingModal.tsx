@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import Modal from "@/components/ui/Modal";
 
 type RoomAvail = {
   id: number;
@@ -53,10 +54,7 @@ const buildTimeOptions = (startTime: string, endTime: string, stepMinutes: numbe
   const end = clampToStep(toMinutes(endTime), stepMinutes, "floor");
 
   const items: string[] = [];
-  for (let t = start; t <= end; t += stepMinutes) {
-    items.push(fromMinutes(t));
-  }
-
+  for (let t = start; t <= end; t += stepMinutes) items.push(fromMinutes(t));
   return items;
 };
 
@@ -86,7 +84,6 @@ export default function NewBookingModal({
   const stepMinutes = 30;
 
   const timeOptions = useMemo(() => buildTimeOptions(rangeStart, rangeEnd, stepMinutes), [rangeStart, rangeEnd]);
-
   const canQueryRooms = useMemo(() => !!date && !!time, [date, time]);
   const canSubmit = useMemo(() => !!date && !!time && roomId !== "" && !saving, [date, time, roomId, saving]);
 
@@ -99,7 +96,6 @@ export default function NewBookingModal({
     setRooms([]);
     setError(null);
     setSaving(false);
-
     setRangeStart("08:00");
     setRangeEnd("18:00");
   }, [open]);
@@ -112,7 +108,6 @@ export default function NewBookingModal({
 
       try {
         const res = await apiFetch<RoomsResponse>("/rooms", { auth: true });
-
         const items = res.items ?? [];
         if (items.length === 0) return;
 
@@ -124,7 +119,6 @@ export default function NewBookingModal({
 
         setRangeStart(minStart);
         setRangeEnd(maxEnd);
-      } catch {
       } finally {
         setLoadingRange(false);
       }
@@ -153,7 +147,6 @@ export default function NewBookingModal({
 
       try {
         const res = await apiFetch<RoomsAvailResponse>(`/rooms/available?date=${date}&time=${time}`, { auth: true });
-
         setRooms(res.items);
 
         const stillValid = res.items.some((r) => r.id === roomId && r.available);
@@ -177,12 +170,7 @@ export default function NewBookingModal({
     setError(null);
 
     try {
-      await apiFetch("/bookings", {
-        method: "POST",
-        auth: true,
-        body: { date, time, roomId }
-      });
-
+      await apiFetch("/bookings", { method: "POST", auth: true, body: { date, time, roomId } });
       onClose();
       onCreated();
     } catch (e) {
@@ -192,97 +180,88 @@ export default function NewBookingModal({
     }
   };
 
-  if (!open) return null;
+  const footer = (
+    <button
+      type="button"
+      onClick={onSubmit}
+      disabled={!canSubmit}
+      className="w-full rounded-xl bg-black px-4 py-4 font-semibold text-white disabled:opacity-40"
+    >
+      {saving ? "Confirmando..." : "Confirmar Agendamento"}
+    </button>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b p-6">
-          <h2 className="text-lg font-semibold">Novo Agendamento</h2>
-          <button type="button" onClick={onClose} className="text-xl leading-none">
-            ✕
-          </button>
+    <Modal open={open} onClose={onClose} title="Novo Agendamento" size="md" footer={footer}>
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <label className="text-sm">
+            Selecione uma <span className="font-semibold">data</span> <span className="opacity-60">(Obrigatório)</span>
+          </label>
+          <div className="relative">
+            <input
+              className="w-full rounded-xl border px-4 py-3 pr-10 outline-none"
+              type="date"
+              min={todayISO()}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60">📅</span>
+          </div>
         </div>
 
-        <div className="space-y-5 p-6">
-          <div className="space-y-2">
-            <label className="text-sm">
-              Selecione uma <span className="font-semibold">data</span> <span className="opacity-60">(Obrigatório)</span>
-            </label>
-            <div className="relative">
-              <input
-                className="w-full rounded-xl border px-4 py-3 pr-10 outline-none"
-                type="date"
-                min={todayISO()}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60">📅</span>
-            </div>
-          </div>
+        <div className="space-y-2">
+          <label className="text-sm">
+            Selecione um <span className="font-semibold">horário</span> <span className="opacity-60">(Obrigatório)</span>
+          </label>
 
-          <div className="space-y-2">
-            <label className="text-sm">
-              Selecione um <span className="font-semibold">horário</span> <span className="opacity-60">(Obrigatório)</span>
-            </label>
-
-            <select
-              className="w-full rounded-xl border px-4 py-3 outline-none disabled:bg-gray-100"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              disabled={!date || loadingRange}
-            >
-              <option value="">{!date ? "Selecione uma data primeiro" : loadingRange ? "Carregando horários..." : "Selecione um horário"}</option>
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-
-            {!date && <p className="text-xs text-black/60">Selecione uma data para liberar os horários.</p>}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm">
-              Selecione um <span className="font-semibold">Sala</span> <span className="opacity-60">(Obrigatório)</span>
-            </label>
-
-            <select
-              className="w-full rounded-xl border px-4 py-3 outline-none disabled:bg-gray-100"
-              disabled={!canQueryRooms || loadingRooms}
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value ? Number(e.target.value) : "")}
-            >
-              <option value="">
-                {loadingRooms ? "Carregando salas..." : canQueryRooms ? "Selecione uma sala" : "Selecione data e horário primeiro"}
-              </option>
-
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id} disabled={!r.available}>
-                  {r.name}
-                  {!r.available ? " (Indisponível)" : ""}
-                </option>
-              ))}
-            </select>
-
-            {!canQueryRooms && <p className="text-xs text-black/60">Selecione data e horário para ver salas disponíveis.</p>}
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
-
-        <div className="border-t bg-white p-6">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            className="w-full rounded-xl bg-black px-4 py-4 font-semibold text-white disabled:opacity-40"
+          <select
+            className="w-full rounded-xl border px-4 py-3 outline-none disabled:bg-gray-100"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            disabled={!date || loadingRange}
           >
-            {saving ? "Confirmando..." : "Confirmar Agendamento"}
-          </button>
+            <option value="">
+              {!date ? "Selecione uma data primeiro" : loadingRange ? "Carregando horários..." : "Selecione um horário"}
+            </option>
+            {timeOptions.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+
+          {!date ? <p className="text-xs text-black/60">Selecione uma data para liberar os horários.</p> : null}
         </div>
+
+        <div className="space-y-2">
+          <label className="text-sm">
+            Selecione um <span className="font-semibold">Sala</span> <span className="opacity-60">(Obrigatório)</span>
+          </label>
+
+          <select
+            className="w-full rounded-xl border px-4 py-3 outline-none disabled:bg-gray-100"
+            disabled={!canQueryRooms || loadingRooms}
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value ? Number(e.target.value) : "")}
+          >
+            <option value="">
+              {loadingRooms ? "Carregando salas..." : canQueryRooms ? "Selecione uma sala" : "Selecione data e horário primeiro"}
+            </option>
+
+            {rooms.map((r) => (
+              <option key={r.id} value={r.id} disabled={!r.available}>
+                {r.name}
+                {!r.available ? " (Indisponível)" : ""}
+              </option>
+            ))}
+          </select>
+
+          {!canQueryRooms ? <p className="text-xs text-black/60">Selecione data e horário para ver salas disponíveis.</p> : null}
+        </div>
+
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -46,8 +46,8 @@ export default function ClientSidebar() {
 };
 
   return (
-    <aside className="w-[280px] border-r bg-[#f5f1ed]">
-      <div className="flex h-[84px] items-center px-8">
+    <aside className="w-70 border-r bg-[#f5f1ed]">
+      <div className="flex h-21 items-center px-8">
         <div className="h-10 w-10 rounded-full bg-black/10" />
       </div>
 
@@ -62,7 +62,7 @@ export default function ClientSidebar() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate font-medium">{user?.name ?? "Usuário"}</p>
-              <p className="text-sm opacity-70">Cliente</p>
+              <p className="text-sm opacity-70">{user?.role}</p>
             </div>
             <button type="button" className="rounded-xl border px-3 py-2 text-sm" onClick={onLogout}>
               Sair

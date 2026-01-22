@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import GuardLoading from "./GuardLoading";
+import GuardLoading from "../GuardLoading";
 import { getToken, getUser } from "@/lib/auth";
 
 export default function AdminGuard({ children }: { children: React.ReactNode }) {

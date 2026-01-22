@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import Modal from "@/components/ui/Modal";
 
 type CreateRoomBody = {
   name: string;
@@ -52,7 +53,6 @@ export default function SchedulingSettingsModal({
   const [error, setError] = useState<string | null>(null);
 
   const timeOptions = useMemo(() => buildTimeOptions("00:00", "23:30", stepMinutes), []);
-
   const endOptions = useMemo(() => {
     const s = toMinutes(startTime);
     return timeOptions.filter((t) => toMinutes(t) > s);
@@ -71,11 +71,8 @@ export default function SchedulingSettingsModal({
     if (!open) return;
     const s = toMinutes(startTime);
     const e = toMinutes(endTime);
-    if (e <= s) {
-      const next = fromMinutes(s + stepMinutes);
-      setEndTime(next);
-    }
-  }, [open, startTime]);
+    if (e <= s) setEndTime(fromMinutes(s + stepMinutes));
+  }, [open, startTime, endTime]);
 
   const canSave = useMemo(() => {
     if (!name.trim()) return false;
@@ -108,89 +105,78 @@ export default function SchedulingSettingsModal({
     }
   };
 
-  if (!open) return null;
+  const footer = (
+    <button
+      type="button"
+      onClick={onSubmit}
+      disabled={!canSave}
+      className="w-full rounded-xl bg-black px-4 py-4 font-semibold text-white disabled:opacity-40"
+    >
+      {saving ? "Salvando..." : "Adicionar nova sala"}
+    </button>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-6 py-5">
-          <h2 className="text-lg font-semibold">Ajustes de agendamento</h2>
-          <button type="button" onClick={onClose} className="text-xl leading-none">
-            ✕
-          </button>
+    <Modal open={open} onClose={onClose} title="Ajustes de agendamento" size="lg" footer={footer}>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-sm">
+            Nome da sala <span className="opacity-60">(Obrigatório)</span>
+          </label>
+          <input
+            className="w-full rounded-xl border px-4 py-3 outline-none"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex: Sala 001"
+          />
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm">
-              Nome da sala <span className="opacity-60">(Obrigatório)</span>
+              Horário Inicial <span className="opacity-60">(Obrigatório)</span>
             </label>
-            <input
+            <select
               className="w-full rounded-xl border px-4 py-3 outline-none"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Sala 001"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm">
-                Horário Inicial <span className="opacity-60">(Obrigatório)</span>
-              </label>
-              <select
-                className="w-full rounded-xl border px-4 py-3 outline-none"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              >
-                {timeOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm">
-                Horário Final <span className="opacity-60">(Obrigatório)</span>
-              </label>
-              <select
-                className="w-full rounded-xl border px-4 py-3 outline-none"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              >
-                {endOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            >
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm">Bloco de agendamento</label>
-            <div className="flex items-center justify-between rounded-xl border bg-gray-50 px-4 py-3">
-              <span className="text-sm">30 minutos</span>
-              <span className="text-xs opacity-60">Fixado pelo sistema</span>
-            </div>
+            <label className="text-sm">
+              Horário Final <span className="opacity-60">(Obrigatório)</span>
+            </label>
+            <select
+              className="w-full rounded-xl border px-4 py-3 outline-none"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            >
+              {endOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
 
-        <div className="border-t bg-white p-6">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={!canSave}
-            className="w-full rounded-xl bg-black px-4 py-4 font-semibold text-white disabled:opacity-40"
-          >
-            {saving ? "Salvando..." : "Adicionar nova sala"}
-          </button>
+        <div className="space-y-2">
+          <label className="text-sm">Bloco de agendamento</label>
+          <div className="flex items-center justify-between rounded-xl border bg-gray-50 px-4 py-3">
+            <span className="text-sm">30 minutos</span>
+            <span className="text-xs opacity-60">Fixado pelo sistema</span>
+          </div>
         </div>
+
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </div>
-    </div>
+    </Modal>
   );
 }

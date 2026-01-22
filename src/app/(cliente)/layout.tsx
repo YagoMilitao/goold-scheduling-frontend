@@ -1,6 +1,6 @@
 "use client";
 
-import ClientSidebar from "@/components/ClientSidebar";
+import ClientSidebar from "@/components/client/ClientSidebar";
 import UserGuard from "@/components/UserGuard";
 
 

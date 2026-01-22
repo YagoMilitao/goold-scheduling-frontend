@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/EmptyState";
 import { apiFetch } from "@/lib/api";
+import DateFilter from "@/components/ui/DateFilterSelect";
+
 
 type ApiClientItem = {
   id: number;
@@ -22,9 +23,7 @@ type ApiClientItem = {
   canViewLogs: boolean;
 };
 
-type ListResponse = {
-  items: ApiClientItem[];
-};
+type ListResponse = { items: ApiClientItem[] };
 
 type ClientRow = {
   id: number;
@@ -112,11 +111,15 @@ const toRow = (x: ApiClientItem): ClientRow => ({
   }
 });
 
-export default function AdminClientesPage() {
-  const router = useRouter();
+const isoDay = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
+export default function AdminClientesPage() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
+  const [date, setDate] = useState("");
   const [items, setItems] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -124,8 +127,7 @@ export default function AdminClientesPage() {
     setLoading(true);
     try {
       const res = await apiFetch<ListResponse>(`/admin/clients?order=${order}`, { auth: true });
-      const mapped = (res.items ?? []).map(toRow);
-      setItems(mapped);
+      setItems((res.items ?? []).map(toRow));
     } finally {
       setLoading(false);
     }
@@ -134,16 +136,6 @@ export default function AdminClientesPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return items;
-
-    return items.filter((c) => {
-      const full = `${c.name} ${c.lastName ?? ""}`.trim().toLowerCase();
-      return full.includes(term);
-    });
-  }, [items, q]);
 
   const onToggleOrder = () => setOrder((p) => (p === "asc" ? "desc" : "asc"));
 
@@ -222,11 +214,27 @@ export default function AdminClientesPage() {
     [items, optimisticUpdate, load]
   );
 
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const byName = (c: ClientRow) => {
+      if (!term) return true;
+      const full = `${c.name} ${c.lastName ?? ""}`.trim().toLowerCase();
+      return full.includes(term);
+    };
+
+    const byDate = (c: ClientRow) => {
+      if (!date) return true;
+      return isoDay(c.createdAt) === date;
+    };
+
+    return items.filter((c) => byName(c) && byDate(c));
+  }, [items, q, date]);
+
   const toolbar = (
-    <div className="flex items-center justify-between gap-4">
+    <div className="mt-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <div className="flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3">
-          <span className="h-4 w-4 rounded bg-black/10" />
+        <div className="flex w-full max-w-md items-center gap-3 rounded-xl border bg-white px-4 py-3">
+          <img src="/icons/lupa_logo.svg" alt="" className="h-5 w-5 opacity-70" />
           <input
             className="w-full outline-none"
             placeholder="Filtre por nome"
@@ -235,21 +243,13 @@ export default function AdminClientesPage() {
           />
         </div>
 
-        <div className="flex w-52 items-center justify-between rounded-xl border px-4 py-3 text-black/60">
-          <span>Selecione</span>
-          <span className="h-4 w-4 rounded bg-black/10" />
-        </div>
+        <DateFilter
+          value={date}
+          onChange={setDate}
+          placeholder="Selecione"
+          iconSrc="/icons/bookings_logo.svg"
+        />
       </div>
-
-      <button
-        className="rounded-xl border px-6 py-3 font-semibold"
-        type="button"
-        onClick={() => router.push("/admin/agendamentos")}
-        title="Voltar para agendamentos"
-        aria-label="Voltar para agendamentos"
-      >
-        Voltar
-      </button>
     </div>
   );
 
@@ -258,116 +258,119 @@ export default function AdminClientesPage() {
       <button className="rounded-lg border px-3 py-2" type="button" title="Página anterior" aria-label="Página anterior">
         ‹
       </button>
-      <span className="rounded-lg border px-4 py-2">1</span>
+      <span className="rounded-lg border px-4 py-2">Arrumar a paginação</span>
       <button className="rounded-lg border px-3 py-2" type="button" title="Próxima página" aria-label="Próxima página">
         ›
       </button>
     </div>
   );
 
+  const pillBase = "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium border";
+  const pillOn = "bg-black text-white border-black";
+  const pillOff = "bg-white text-black border-black/20";
+
+  const toggleBase = "relative inline-flex h-6 w-12 items-center rounded-full transition-colors";
+  const toggleOn = "bg-black";
+  const toggleOff = "bg-black/30";
+  const dotBase = "inline-block h-5 w-5 transform rounded-full bg-white transition-transform";
+  const dotOn = "translate-x-6";
+  const dotOff = "translate-x-1";
+
   return (
     <PageShell title="Clientes" subtitle="Overview de todos os clientes" toolbar={toolbar} footer={footer}>
       {loading ? (
-        <div className="h-full w-full rounded-2xl border p-6">Carregando...</div>
+        <div className="p-6">Carregando...</div>
       ) : filtered.length === 0 ? (
         <EmptyState title="Nenhum cliente encontrado" />
       ) : (
-        <div className="w-full overflow-x-auto rounded-2xl border">
-          <table className="min-w-[1100px] w-full">
-            <thead>
-              <tr className="border-b text-sm text-black/70">
-                <th className="text-left p-4">
-                  <div className="flex items-center gap-3">
-                    <span>Data de cadastro</span>
-                    <button
-                      type="button"
-                      onClick={onToggleOrder}
-                      title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
-                      aria-label="Alternar ordem"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-black/70 hover:bg-black/5"
-                    >
-                      <img
-                        src="/icons/ArrowsDownUpIcon.svg"
-                        alt=""
-                        className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`}
-                      />
-                    </button>
-                  </div>
-                </th>
-                <th className="text-left p-4">Nome</th>
-                <th className="text-left p-4">Endereço</th>
-                <th className="text-left p-4">Permissões</th>
-                <th className="text-left p-4">Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filtered.map((c) => {
-                const fullName = `${c.name}${c.lastName ? ` ${c.lastName}` : ""}`;
-                const addr = formatAddressLine(c);
-
-                const pillBase = "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium border";
-                const pillOn = "bg-black text-white border-black";
-                const pillOff = "bg-white text-black border-black/20";
-
-                const toggleBase = "relative inline-flex h-6 w-12 items-center rounded-full transition-colors";
-                const toggleOn = "bg-black";
-                const toggleOff = "bg-black/30";
-                const dotBase = "inline-block h-5 w-5 transform rounded-full bg-white transition-transform";
-                const dotOn = "translate-x-6";
-                const dotOff = "translate-x-1";
-
-                return (
-                  <tr key={c.id} className="border-b last:border-b-0">
-                    <td className="p-4">{formatDateTimeBR(c.createdAt)}</td>
-
-                    <td className="p-4">
-                      <div className="flex flex-col leading-tight">
-                        <span className="font-medium">{fullName}</span>
-                        <span className="text-sm text-black/60">Cliente</span>
-                      </div>
-                    </td>
-
-                    <td className="p-4">
-                      <span className="text-sm text-black/80">{addr}</span>
-                    </td>
-
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => onToggleBookingsPermission(c.id)}
-                          className={`${pillBase} ${c.permissions.canViewBookings ? pillOn : pillOff}`}
-                        >
-                          Agendamentos
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onToggleLogsPermission(c.id)}
-                          className={`${pillBase} ${c.permissions.canViewLogs ? pillOn : pillOff}`}
-                        >
-                          Logs
-                        </button>
-                      </div>
-                    </td>
-
-                    <td className="p-4">
+        <div className="border-t" style={{ borderColor: "#D7D7D7" }}>
+          <div className="px-[30px]">
+            <table className="w-full min-w-[1100px] border-collapse">
+              <thead>
+                <tr className="text-sm text-black/70" style={{ borderBottom: "1px solid #D7D7D7" }}>
+                  <th className="py-5 pr-6 text-left font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>Data de cadastro</span>
                       <button
                         type="button"
-                        onClick={() => onToggleActive(c.id)}
-                        className={`${toggleBase} ${c.status.isActive ? toggleOn : toggleOff}`}
-                        title={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
-                        aria-label={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
+                        onClick={onToggleOrder}
+                        title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
+                        aria-label="Alternar ordem"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5"
                       >
-                        <span className={`${dotBase} ${c.status.isActive ? dotOn : dotOff}`} />
+                        <img
+                          src="/icons/ArrowsDownUpIcon.svg"
+                          alt=""
+                          className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`}
+                        />
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </div>
+                  </th>
+
+                  <th className="py-5 pr-6 text-left font-medium">Nome</th>
+                  <th className="py-5 pr-6 text-left font-medium">Endereço</th>
+                  <th className="py-5 pr-6 text-left font-medium">Permissões</th>
+                  <th className="py-5 text-left font-medium">Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filtered.map((c) => {
+                  const fullName = `${c.name}${c.lastName ? ` ${c.lastName}` : ""}`;
+                  const addr = formatAddressLine(c);
+
+                  return (
+                    <tr key={c.id} style={{ borderBottom: "1px solid #D7D7D7" }}>
+                      <td className="py-6 pr-6 text-sm">{formatDateTimeBR(c.createdAt)}</td>
+
+                      <td className="py-6 pr-6">
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-medium">{fullName}</span>
+                          <span className="text-sm text-black/60">Cliente</span>
+                        </div>
+                      </td>
+
+                      <td className="py-6 pr-6">
+                        <span className="text-sm text-black/80">{addr}</span>
+                      </td>
+
+                      <td className="py-6 pr-6">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => onToggleBookingsPermission(c.id)}
+                            className={`${pillBase} ${c.permissions.canViewBookings ? pillOn : pillOff}`}
+                          >
+                            Agendamentos
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onToggleLogsPermission(c.id)}
+                            className={`${pillBase} ${c.permissions.canViewLogs ? pillOn : pillOff}`}
+                          >
+                            Logs
+                          </button>
+                        </div>
+                      </td>
+
+                      <td className="py-6">
+                        <button
+                          type="button"
+                          onClick={() => onToggleActive(c.id)}
+                          className={`${toggleBase} ${c.status.isActive ? toggleOn : toggleOff}`}
+                          title={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
+                          aria-label={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
+                        >
+                          <span className={`${dotBase} ${c.status.isActive ? dotOn : dotOff}`} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </PageShell>

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageShell from "@/components/PageShell";
 import SchedulingSettingsModal from "@/components/SchedulingSettingsModal";
+
 import { apiFetch } from "@/lib/api";
+import DateFilter from "@/components/ui/DateFilterSelect";
 
 type BookingItem = {
   id: number;
@@ -22,21 +24,21 @@ const statusText: Record<BookingItem["status"], string> = {
   CANCELADO: "Cancelado"
 };
 
-const statusPillClass: Record<BookingItem["status"], string> = {
-  EM_ANALISE: "border-gray-300 text-gray-600 bg-white",
-  AGENDADO: "border-emerald-300 text-emerald-600 bg-emerald-50",
-  CANCELADO: "border-red-300 text-red-600 bg-red-50"
-};
-
-const rowClass: Record<BookingItem["status"], string> = {
-  EM_ANALISE: "",
-  AGENDADO: "bg-emerald-50/40",
-  CANCELADO: "bg-red-50/40"
-};
-
 const roleLabel: Record<BookingItem["createdByRole"], string> = {
   ADMIN: "Admin",
   CLIENT: "Cliente"
+};
+
+const rowBgClass: Record<BookingItem["status"], string> = {
+  EM_ANALISE: "",
+  AGENDADO: "bg-[#F2FFFD]",
+  CANCELADO: "bg-[#FFF3F3]"
+};
+
+const statusPillClass: Record<BookingItem["status"], string> = {
+  EM_ANALISE: "bg-white border-[#A4AAAD] text-[#A4AAAD]",
+  AGENDADO: "bg-white border-[#10C3A9] text-[#10C3A9]",
+  CANCELADO: "bg-white border-[#FF0000] text-[#FF0000]"
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -51,24 +53,24 @@ const formatBR = (iso: string) => {
   return `${dd}/${mm}/${yyyy} às ${hh}:${min}`;
 };
 
-function SortIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M16 17l-4 4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
+const isoDateFromScheduledAt = (iso: string) => {
+  const d = new Date(iso);
+  const dd = pad(d.getDate());
+  const mm = pad(d.getMonth() + 1);
+  const yyyy = d.getFullYear();
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export default function AdminAgendamentosPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [q, setQ] = useState("");
+  const [date, setDate] = useState("");
 
   const [items, setItems] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actingId, setActingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -92,15 +94,19 @@ export default function AdminAgendamentosPage() {
     load();
   }, [load]);
 
-  const onToggleOrder = () => setOrder((p) => (p === "asc" ? "desc" : "asc"));
+  const onToggleOrder = () => setOrder((prev) => (prev === "asc" ? "desc" : "asc"));
 
   const onConfirm = useCallback(
     async (id: number) => {
+      setActingId(id);
+      setError(null);
       try {
         await apiFetch(`/admin/bookings/${id}/confirm`, { method: "PATCH", auth: true });
         await load();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao confirmar");
+      } finally {
+        setActingId(null);
       }
     },
     [load]
@@ -108,11 +114,15 @@ export default function AdminAgendamentosPage() {
 
   const onCancel = useCallback(
     async (id: number) => {
+      setActingId(id);
+      setError(null);
       try {
         await apiFetch(`/admin/bookings/${id}/cancel`, { method: "PATCH", auth: true });
         await load();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao cancelar");
+      } finally {
+        setActingId(null);
       }
     },
     [load]
@@ -120,39 +130,45 @@ export default function AdminAgendamentosPage() {
 
   const viewItems = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return items;
+    const selectedDate = date.trim();
 
     return items.filter((b) => {
       const name = b.user?.name?.toLowerCase() ?? "";
       const room = b.room?.name?.toLowerCase() ?? "";
       const status = statusText[b.status]?.toLowerCase() ?? "";
-      return name.includes(term) || room.includes(term) || status.includes(term);
+
+      const matchesText = !term || name.includes(term) || room.includes(term) || status.includes(term);
+      const matchesDate = !selectedDate || isoDateFromScheduledAt(b.scheduledAt) === selectedDate;
+
+      return matchesText && matchesDate;
     });
-  }, [items, q]);
+  }, [items, q, date]);
 
   const toolbar = (
-    <div className="flex items-center justify-between gap-4">
+    <div className="mt-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <div className="flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3">
-          <span className="h-4 w-4 rounded bg-black/10" />
-          <input className="w-full outline-none" placeholder="Filtre por nome" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex w-full max-w-md items-center gap-3 rounded-xl border bg-white px-4 py-3">
+          <img src="/icons/lupa_logo.svg" alt="" className="h-5 w-5 opacity-70" />
+          <input
+            className="w-full outline-none"
+            placeholder="Filtre por nome"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
         </div>
 
-        <div className="flex w-52 items-center justify-between rounded-xl border px-4 py-3 text-black/60">
-          <span>Selecione</span>
-          <span className="h-4 w-4 rounded bg-black/10" />
-        </div>
-
-        <div className="flex w-40 items-center justify-between rounded-xl border px-4 py-3 text-black/60">
-          <span></span>
-          <span className="h-4 w-4 rounded bg-black/10" />
-        </div>
+        <DateFilter
+          value={date}
+          onChange={setDate}
+          placeholder="Selecione"
+          iconSrc="/icons/bookings_logo.svg"
+        />
       </div>
 
       <button
         className="rounded-xl bg-black px-8 py-3 font-semibold text-white"
-        type="button"
         onClick={() => setSettingsOpen(true)}
+        type="button"
       >
         Ajustes de agendamento
       </button>
@@ -164,7 +180,7 @@ export default function AdminAgendamentosPage() {
       <button className="rounded-lg border px-3 py-2" type="button" aria-label="Página anterior">
         ‹
       </button>
-      <span className="rounded-lg border px-4 py-2">1</span>
+      <span className="rounded-lg border px-4 py-2">Arrumar a paginacao</span>
       <button className="rounded-lg border px-3 py-2" type="button" aria-label="Próxima página">
         ›
       </button>
@@ -179,104 +195,120 @@ export default function AdminAgendamentosPage() {
         toolbar={toolbar}
         footer={footer}
       >
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+        {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
 
         {loading ? (
-          <div className="h-full w-full rounded-2xl border p-6">Carregando...</div>
+          <div className="p-6">Carregando...</div>
         ) : viewItems.length === 0 ? (
-          <div className="h-full w-full rounded-2xl border p-6">Nenhum agendamento encontrado</div>
+          <div className="p-6">Nenhum agendamento encontrado</div>
         ) : (
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-[980px] w-full">
-              <thead>
-                <tr className="border-b text-sm text-black/70">
-                  <th className="text-left py-4 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span>Data agendamento</span>
-                      <button
-                        type="button"
-                        onClick={onToggleOrder}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-black/70 hover:bg-black/5"
-                        aria-label="Ordenar"
-                        title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
+          <div className="border-t" style={{ borderColor: "#D7D7D7" }}>
+            <div className="px-8">
+              <table className="w-full min-w-[980px] border-collapse">
+                <thead>
+                  <tr className="text-sm text-black/70" style={{ borderBottom: "1px solid #D7D7D7" }}>
+                    <th className="py-5 pr-6 text-left font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>Data agendamento</span>
+                        <button
+                          onClick={onToggleOrder}
+                          type="button"
+                          aria-label="Ordenar por data"
+                          title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5"
+                        >
+                          <img
+                            src="/icons/ArrowsDownUpIcon.svg"
+                            alt=""
+                            className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`}
+                          />
+                        </button>
+                      </div>
+                    </th>
+                    <th className="py-5 pr-6 text-left font-medium">Nome</th>
+                    <th className="py-5 pr-6 text-left font-medium">Sala de agendamento</th>
+                    <th className="py-5 pr-6 text-left font-medium">Status</th>
+                    <th className="py-5 text-center font-medium">Ação</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {viewItems.map((b) => {
+                    const showConfirm = b.status === "EM_ANALISE";
+                    const showCancel = b.status !== "CANCELADO";
+                    const disabled = actingId === b.id;
+
+                    return (
+                      <tr
+                        key={b.id}
+                        className={rowBgClass[b.status]}
+                        style={{ borderBottom: "1px solid #D7D7D7" }}
                       >
-                        <SortIcon className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`} />
-                      </button>
-                    </div>
-                  </th>
+                        <td className="py-6 pr-6 text-sm text-black/80">{formatBR(b.scheduledAt)}</td>
 
-                  <th className="text-left py-4 pr-4">Nome</th>
-                  <th className="text-left py-4 pr-4">Sala de agendamento</th>
-                  <th className="text-left py-4 pr-4">Status</th>
-                  <th className="text-right py-4 pl-4">Ação</th>
-                </tr>
-              </thead>
+                        <td className="py-6 pr-6">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{b.user.name}</span>
+                            <span className="text-sm text-black/60">{roleLabel[b.createdByRole]}</span>
+                          </div>
+                        </td>
 
-              <tbody>
-                {viewItems.map((b) => {
-                  const showConfirm = b.status === "EM_ANALISE";
-                  const showCancel = b.status !== "CANCELADO";
+                        <td className="py-6 pr-6">
+                          <span className="inline-flex rounded-full bg-black px-4 py-2 text-sm font-semibold text-white">
+                            {b.room.name}
+                          </span>
+                        </td>
 
-                  return (
-                    <tr key={b.id} className={`border-b ${rowClass[b.status]}`}>
-                      <td className="py-5 pr-4">{formatBR(b.scheduledAt)}</td>
+                        <td className="py-6 pr-6">
+                          <span className={`inline-flex rounded-full border px-5 py-2 text-sm ${statusPillClass[b.status]}`}>
+                            {statusText[b.status]}
+                          </span>
+                        </td>
 
-                      <td className="py-5 pr-4">
-                        <div className="flex flex-col leading-tight">
-                          <span className="font-medium">{b.user.name}</span>
-                          <span className="text-sm text-black/60">{roleLabel[b.createdByRole]}</span>
-                        </div>
-                      </td>
+                        <td className="py-6 text-center">
+                          <div className="inline-flex gap-3">
+                            {showCancel ? (
+                              <button
+                                type="button"
+                                onClick={() => onCancel(b.id)}
+                                disabled={disabled}
+                                aria-label="Cancelar"
+                                title="Cancelar"
+                                className="disabled:opacity-50"
+                              >
+                                <img src="/icons/cancel.svg" alt="" className="h-10 w-10" />
+                              </button>
+                            ) : null}
 
-                      <td className="py-5 pr-4">
-                        <span className="inline-flex rounded-full bg-black px-4 py-2 text-sm font-semibold text-white">
-                          {b.room.name}
-                        </span>
-                      </td>
-
-                      <td className="py-5 pr-4">
-                        <span className={`inline-flex rounded-full border px-4 py-2 text-sm ${statusPillClass[b.status]}`}>
-                          {statusText[b.status]}
-                        </span>
-                      </td>
-
-                      <td className="py-5 pl-4 text-right">
-                        <div className="inline-flex items-center gap-3">
-                          {showCancel ? (
-                            <button
-                              type="button"
-                              onClick={() => onCancel(b.id)}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white"
-                              aria-label="Cancelar"
-                              title="Cancelar"
-                            >
-                              ✕
-                            </button>
-                          ) : null}
-
-                          {showConfirm ? (
-                            <button
-                              type="button"
-                              onClick={() => onConfirm(b.id)}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white"
-                              aria-label="Confirmar"
-                              title="Confirmar"
-                            >
-                              ✓
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            {showConfirm ? (
+                              <button
+                                type="button"
+                                onClick={() => onConfirm(b.id)}
+                                disabled={disabled}
+                                aria-label="Confirmar"
+                                title="Confirmar"
+                                className="disabled:opacity-50"
+                              >
+                                <img src="/icons/check.svg" alt="" className="h-10 w-10" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </PageShell>
 
-      <SchedulingSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={() => {}} />
+      <SchedulingSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={() => {}}
+      />
     </>
   );
 }
