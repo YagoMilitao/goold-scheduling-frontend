@@ -1,75 +1,90 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
-import { clearAuth, getUser } from "@/lib/auth";
-import { clear } from "console";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { clearAuth, getUser } from "@/lib/auth";
+import ConfirmLogoutModal from "@/components/auth/ConfirmLougoutModal";
 
-
-const Item = ({
-  active,
-  label,
-  onClick
-}: {
-  active: boolean;
+type NavItem = {
+  href: string;
   label: string;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left ${
-      active ? "bg-black text-white" : "text-black/80 hover:bg-black/5"
-    }`}
-  >
-    <span className="h-5 w-5 rounded bg-black/10" />
-    <span className="font-medium">{label}</span>
-  </button>
-);
+  iconSrc: string;
+};
 
 export default function ClientSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const user = getUser();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const go = (p: string) => router.push(p);
+  const user = useMemo(() => getUser(), []);
+  const clientName = user?.name ?? "Cliente";
+  const roleLabel = user?.role === "CLIENT" ? "Cliente" : "Usuário";
 
-  const onLogout = async () => {
-  try {
-    await apiFetch("/auth/logout", { method: "POST", auth: true });
-  } catch {
+  const items: NavItem[] = [
+    { href: "/agendamentos", label: "Agendamentos", iconSrc: "/icons/bookings_logo.svg" },
+    { href: "/logs", label: "Logs", iconSrc: "/icons/logs_logo.svg" },
+    { href: "/minha-conta", label: "Minha conta", iconSrc: "/icons/user.svg" },
+  ];
 
-  } finally {
+  const onLogout = () => {
     clearAuth();
-    router.replace("/");
-  }
-};
+    router.replace("/login");
+  };
 
   return (
-    <aside className="w-70 border-r bg-[#f5f1ed]">
-      <div className="flex h-21 items-center px-8">
-        <div className="h-10 w-10 rounded-full bg-black/10" />
-      </div>
-
-      <div className="px-6 pt-6 space-y-2">
-        <Item active={pathname.includes("/agendamentos")} label="Agendamentos" onClick={() => go("/agendamentos")} />
-        <Item active={pathname.includes("/logs")} label="Logs" onClick={() => go("/logs")} />
-        <Item active={pathname.includes("/minha-conta")} label="Minha Conta" onClick={() => go("/minha-conta")} />
-      </div>
-
-      <div className="mt-auto px-6 pb-6 pt-10">
-        <div className="rounded-2xl bg-white px-4 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-medium">{user?.name ?? "Usuário"}</p>
-              <p className="text-sm opacity-70">{user?.role}</p>
-            </div>
-            <button type="button" className="rounded-xl border px-3 py-2 text-sm" onClick={onLogout}>
-              Sair
-            </button>
-          </div>
+    <>
+      <aside
+        className="flex h-full min-h-screen w-70 flex-col border-r"
+        style={{ backgroundColor: "#F6F4F1", borderColor: "#D7D7D7" }}
+      >
+        <div className="px-8 py-8">
+          <Link href="/agendamentos" className="inline-flex items-center gap-3">
+            <img src="/icons/group_logo.svg" alt="Logo" className="h-8 w-auto" />
+          </Link>
         </div>
-      </div>
-    </aside>
+
+        <nav className="flex-1 px-6">
+          <div className="space-y-3">
+            {items.map((it) => {
+              const active = pathname === it.href || pathname.startsWith(`${it.href}/`);
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-colors ${
+                    active ? "bg-black text-white" : "text-black/80 hover:bg-black/10"
+                  }`}
+                >
+                  <img src={it.iconSrc} alt="" className={`h-5 w-5 ${active ? "brightness-0 invert" : ""}`} />
+                  <span className="text-sm font-medium">{it.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="border-t px-6 pb-6" style={{ borderColor: "#D7D7D7" }}>
+          <button
+            type="button"
+            onClick={() => setLogoutOpen(true)}
+            className="flex w-full items-center justify-between px-4 py-4"
+            aria-label="Abrir menu do perfil"
+            title="Abrir menu do perfil"
+          >
+            <div className="flex flex-col items-start leading-tight">
+              <span className="text-sm font-semibold">{clientName}</span>
+              <span className="text-xs text-black/60">{roleLabel}</span>
+            </div>
+
+            <div className="pr-4.75">
+              <img src="/icons/chevron-down.svg" alt="" className="h-4 w-4 opacity-70" />
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <ConfirmLogoutModal open={logoutOpen} onClose={() => setLogoutOpen(false)} onConfirm={onLogout} />
+    </>
   );
 }
