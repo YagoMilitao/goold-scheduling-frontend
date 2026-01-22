@@ -176,16 +176,27 @@ export default function AdminAgendamentosPage() {
   );
 
   const footer = (
-    <div className="flex items-center justify-center gap-3">
-      <button className="rounded-lg border px-3 py-2" type="button" aria-label="Página anterior">
-        ‹
-      </button>
-      <span className="rounded-lg border px-4 py-2">Arrumar a paginacao</span>
-      <button className="rounded-lg border px-3 py-2" type="button" aria-label="Próxima página">
-        ›
-      </button>
-    </div>
-  );
+  <div className="flex items-center justify-center">
+    <button
+      type="button"
+      aria-label="Página anterior"
+      className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white"
+    >
+      ‹
+    </button>
+
+    <span className="rounded-lg border bg-black text-white px-4 py-2">1</span>
+
+    <button
+      type="button"
+      aria-label="Próxima página"
+      className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white"
+    >
+      ›
+    </button>
+  </div>
+);
+
 
   return (
     <>
