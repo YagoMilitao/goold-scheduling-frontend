@@ -1,48 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/EmptyState";
-import { apiFetch } from "@/lib/api";
 import DateFilter from "@/components/ui/DateFilterSelect";
-
-
-type ApiClientItem = {
-  id: number;
-  createdAt: string;
-  name: string;
-  lastName: string | null;
-  role: "CLIENT";
-  address: string | null;
-  number: string | null;
-  neighborhood: string | null;
-  city: string | null;
-  state: string | null;
-  isActive: boolean;
-  canViewBookings: boolean;
-  canViewLogs: boolean;
-};
-
-type ListResponse = { items: ApiClientItem[] };
-
-type ClientRow = {
-  id: number;
-  createdAt: string;
-  name: string;
-  lastName: string | null;
-  address: string | null;
-  number: string | null;
-  neighborhood: string | null;
-  city: string | null;
-  state: string | null;
-  permissions: {
-    canViewBookings: boolean;
-    canViewLogs: boolean;
-  };
-  status: {
-    isActive: boolean;
-  };
-};
+import useAdminClientesViewModel, { ClientRow } from "./useAdminClientesViewModel";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -92,143 +53,8 @@ const formatAddressLine = (c: ClientRow) => {
   return line || "-";
 };
 
-const toRow = (x: ApiClientItem): ClientRow => ({
-  id: x.id,
-  createdAt: x.createdAt,
-  name: x.name,
-  lastName: x.lastName,
-  address: x.address,
-  number: x.number,
-  neighborhood: x.neighborhood,
-  city: x.city,
-  state: x.state,
-  permissions: {
-    canViewBookings: !!x.canViewBookings,
-    canViewLogs: !!x.canViewLogs
-  },
-  status: {
-    isActive: !!x.isActive
-  }
-});
-
-const isoDay = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
 export default function AdminClientesPage() {
-  const [order, setOrder] = useState<"asc" | "desc">("desc");
-  const [q, setQ] = useState("");
-  const [date, setDate] = useState("");
-  const [items, setItems] = useState<ClientRow[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch<ListResponse>(`/admin/clients?order=${order}`, { auth: true });
-      setItems((res.items ?? []).map(toRow));
-    } finally {
-      setLoading(false);
-    }
-  }, [order]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const onToggleOrder = () => setOrder((p) => (p === "asc" ? "desc" : "asc"));
-
-  const optimisticUpdate = useCallback((id: number, patch: Partial<ClientRow>) => {
-    setItems((prev) => prev.map((x) => (x.id === id ? ({ ...x, ...patch } as ClientRow) : x)));
-  }, []);
-
-  const onToggleBookingsPermission = useCallback(
-    async (id: number) => {
-      const current = items.find((x) => x.id === id);
-      if (!current) return;
-
-      const next = !current.permissions.canViewBookings;
-
-      optimisticUpdate(id, {
-        permissions: { ...current.permissions, canViewBookings: next }
-      });
-
-      try {
-        await apiFetch(`/admin/clients/${id}/permissions`, {
-          method: "PATCH",
-          auth: true,
-          body: { permission: "canViewBookings" }
-        });
-      } catch {
-        await load();
-      }
-    },
-    [items, optimisticUpdate, load]
-  );
-
-  const onToggleLogsPermission = useCallback(
-    async (id: number) => {
-      const current = items.find((x) => x.id === id);
-      if (!current) return;
-
-      const next = !current.permissions.canViewLogs;
-
-      optimisticUpdate(id, {
-        permissions: { ...current.permissions, canViewLogs: next }
-      });
-
-      try {
-        await apiFetch(`/admin/clients/${id}/permissions`, {
-          method: "PATCH",
-          auth: true,
-          body: { permission: "canViewLogs" }
-        });
-      } catch {
-        await load();
-      }
-    },
-    [items, optimisticUpdate, load]
-  );
-
-  const onToggleActive = useCallback(
-    async (id: number) => {
-      const current = items.find((x) => x.id === id);
-      if (!current) return;
-
-      const next = !current.status.isActive;
-
-      optimisticUpdate(id, {
-        status: { ...current.status, isActive: next }
-      });
-
-      try {
-        await apiFetch(`/admin/clients/${id}/status`, {
-          method: "PATCH",
-          auth: true
-        });
-      } catch {
-        await load();
-      }
-    },
-    [items, optimisticUpdate, load]
-  );
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    const byName = (c: ClientRow) => {
-      if (!term) return true;
-      const full = `${c.name} ${c.lastName ?? ""}`.trim().toLowerCase();
-      return full.includes(term);
-    };
-
-    const byDate = (c: ClientRow) => {
-      if (!date) return true;
-      return isoDay(c.createdAt) === date;
-    };
-
-    return items.filter((c) => byName(c) && byDate(c));
-  }, [items, q, date]);
+  const vm = useAdminClientesViewModel();
 
   const toolbar = (
     <div className="mt-5 flex items-center justify-between gap-4">
@@ -238,28 +64,41 @@ export default function AdminClientesPage() {
           <input
             className="w-full outline-none"
             placeholder="Filtre por nome"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={vm.q}
+            onChange={(e) => vm.setQ(e.target.value)}
           />
         </div>
 
-        <DateFilter
-          value={date}
-          onChange={setDate}
-          placeholder="Selecione"
-          iconSrc="/icons/bookings_logo.svg"
-        />
+        <DateFilter value={vm.date} onChange={vm.setDate} placeholder="Selecione" iconSrc="/icons/bookings_logo.svg" />
       </div>
     </div>
   );
 
   const footer = (
-    <div className="flex items-center justify-center gap-3">
-      <button className="rounded-lg border px-3 py-2" type="button" title="Página anterior" aria-label="Página anterior">
+    <div className="flex items-center justify-center">
+      <button
+        className="rounded-lg bg-black px-3 py-2 text-white "
+        type="button"
+        onClick={vm.goPrev}
+        disabled={!vm.canPrev}
+        aria-label="Página anterior"
+        title="Página anterior"
+      >
         ‹
       </button>
-      <span className="rounded-lg border px-4 py-2">Arrumar a paginação</span>
-      <button className="rounded-lg border px-3 py-2" type="button" title="Próxima página" aria-label="Próxima página">
+
+      <span className="rounded-lg border bg-black text-white px-4 py-2">
+        {vm.page}
+      </span>
+
+      <button
+        className="rounded-lg bg-black px-3 py-2 text-white "
+        type="button"
+        onClick={vm.goNext}
+        disabled={!vm.canNext}
+        aria-label="Próxima página"
+        title="Próxima página"
+      >
         ›
       </button>
     </div>
@@ -278,9 +117,9 @@ export default function AdminClientesPage() {
 
   return (
     <PageShell title="Clientes" subtitle="Overview de todos os clientes" toolbar={toolbar} footer={footer}>
-      {loading ? (
+      {vm.loading ? (
         <div className="p-6">Carregando...</div>
-      ) : filtered.length === 0 ? (
+      ) : vm.items.length === 0 ? (
         <EmptyState title="Nenhum cliente encontrado" />
       ) : (
         <div className="border-t" style={{ borderColor: "#D7D7D7" }}>
@@ -291,17 +130,18 @@ export default function AdminClientesPage() {
                   <th className="py-5 pr-6 text-left font-medium">
                     <div className="flex items-center gap-2">
                       <span>Data de cadastro</span>
+
                       <button
                         type="button"
-                        onClick={onToggleOrder}
-                        title={order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
+                        onClick={vm.onToggleOrder}
+                        title={vm.order === "asc" ? "Ordenar crescente" : "Ordenar decrescente"}
                         aria-label="Alternar ordem"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-black/5"
                       >
                         <img
                           src="/icons/ArrowsDownUpIcon.svg"
                           alt=""
-                          className={`h-4 w-4 transition-transform ${order === "asc" ? "rotate-0" : "rotate-180"}`}
+                          className={`h-4 w-4 transition-transform ${vm.order === "asc" ? "rotate-0" : "rotate-180"}`}
                         />
                       </button>
                     </div>
@@ -315,7 +155,7 @@ export default function AdminClientesPage() {
               </thead>
 
               <tbody>
-                {filtered.map((c) => {
+                {vm.items.map((c) => {
                   const fullName = `${c.name}${c.lastName ? ` ${c.lastName}` : ""}`;
                   const addr = formatAddressLine(c);
 
@@ -338,7 +178,7 @@ export default function AdminClientesPage() {
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => onToggleBookingsPermission(c.id)}
+                            onClick={() => vm.onToggleBookingsPermission(c.id)}
                             className={`${pillBase} ${c.permissions.canViewBookings ? pillOn : pillOff}`}
                           >
                             Agendamentos
@@ -346,7 +186,7 @@ export default function AdminClientesPage() {
 
                           <button
                             type="button"
-                            onClick={() => onToggleLogsPermission(c.id)}
+                            onClick={() => vm.onToggleLogsPermission(c.id)}
                             className={`${pillBase} ${c.permissions.canViewLogs ? pillOn : pillOff}`}
                           >
                             Logs
@@ -357,7 +197,7 @@ export default function AdminClientesPage() {
                       <td className="py-6">
                         <button
                           type="button"
-                          onClick={() => onToggleActive(c.id)}
+                          onClick={() => vm.onToggleActive(c.id)}
                           className={`${toggleBase} ${c.status.isActive ? toggleOn : toggleOff}`}
                           title={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}
                           aria-label={c.status.isActive ? "Desativar cliente" : "Ativar cliente"}

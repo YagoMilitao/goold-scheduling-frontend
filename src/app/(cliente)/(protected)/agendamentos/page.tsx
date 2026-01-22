@@ -54,9 +54,9 @@ export default function AgendamentosPage() {
   );
 
   const footer = (
-    <div className="flex items-center justify-center gap-3">
+    <div className="flex items-center justify-center gap-1">
       <button
-        className="rounded-lg bg-black px-3 py-2 text-white disabled:opacity-40"
+        className="rounded-lg bg-black px-2 py-2 text-white"
         type="button"
         onClick={vm.goPrev}
         disabled={!vm.canPrev}
@@ -65,12 +65,12 @@ export default function AgendamentosPage() {
         ‹
       </button>
 
-      <span className="rounded-lg border px-4 py-2">
-        {vm.page} / {vm.totalPages}
+      <span className="rounded-lg border bg-black px-2 py-2 text-white">
+        {vm.page}
       </span>
 
       <button
-        className="rounded-lg bg-black px-3 py-2 text-white disabled:opacity-40"
+        className="rounded-lg bg-black px-2 py-2 text-white"
         type="button"
         onClick={vm.goNext}
         disabled={!vm.canNext}

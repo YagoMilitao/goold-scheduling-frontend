@@ -1,21 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/EmptyState";
 import DateFilter from "@/components/ui/DateFilterSelect";
-import { apiFetch } from "@/lib/api";
+import { useLogsViewModel } from "./useLogsViewModel";
 
-type LogModule = "AGENDAMENTOS" | "MINHA_CONTA" | "LOGS";
-
-type LogItem = {
-  id: number;
-  activityType: string;
-  module: LogModule;
-  createdAt: string;
+const moduleMeta = {
+  AGENDAMENTOS: { label: "Agendamento", icon: "/icons/bookings_logo.svg" },
+  MINHA_CONTA: { label: "Minha Conta", icon: "/icons/user.svg" },
+  LOGS: { label: "Logs", icon: "/icons/logs_logo.svg" }
 };
-
-type LogsResponse = { items: LogItem[] };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -26,67 +20,8 @@ const formatBR = (iso: string) => {
   )}:${pad(d.getMinutes())}`;
 };
 
-const toISODateLocal = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-const moduleMeta: Record<LogModule, { label: string; icon: string }> = {
-  AGENDAMENTOS: { label: "Agendamento", icon: "/icons/bookings_logo.svg" },
-  MINHA_CONTA: { label: "Minha Conta", icon: "/icons/user.svg" },
-  LOGS: { label: "Logs", icon: "/icons/logs_logo.svg" }
-};
-
 export default function LogsPage() {
-  const [items, setItems] = useState<LogItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [q, setQ] = useState("");
-  const [date, setDate] = useState<string>("");
-
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await apiFetch<LogsResponse>("/logs", { auth: true });
-      setItems(res.items ?? []);
-      setPage(1);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao carregar logs");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-
-    return items.filter((l) => {
-      const matchesText = term
-        ? l.activityType.toLowerCase().includes(term) ||
-          moduleMeta[l.module].label.toLowerCase().includes(term)
-        : true;
-
-      const matchesDate = date ? toISODateLocal(l.createdAt) === date : true;
-
-      return matchesText && matchesDate;
-    });
-  }, [items, q, date]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-
-  const pagedItems = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page]);
+  const vm = useLogsViewModel();
 
   const toolbar = (
     <div className="mt-5 flex items-center justify-between gap-4">
@@ -96,19 +31,19 @@ export default function LogsPage() {
           <input
             className="w-full outline-none"
             placeholder="Filtre por tipo de atividade ou módulo"
-            value={q}
+            value={vm.q}
             onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
+              vm.setQ(e.target.value);
+              vm.goPrev();
             }}
           />
         </div>
 
         <DateFilter
-          value={date}
+          value={vm.date}
           onChange={(v) => {
-            setDate(v);
-            setPage(1);
+            vm.setDate(v);
+            vm.goPrev();
           }}
           placeholder="Selecione"
           iconSrc="/icons/bookings_logo.svg"
@@ -119,25 +54,27 @@ export default function LogsPage() {
   );
 
   const footer = (
-    <div className="flex items-center justify-center gap-3">
+    <div className="flex items-center justify-center gap-1">
       <button
-        className="rounded-lg bg-black px-3 py-2 text-white disabled:opacity-40"
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-        disabled={page === 1}
+        className="rounded-lg bg-black px-2 py-2 text-white"
+        onClick={vm.goPrev}
+        disabled={vm.page === 1}
         type="button"
+        aria-label="Página anterior"
       >
         ‹
       </button>
 
-      <span className="rounded-lg border px-4 py-2">
-        {page}
+      <span className="rounded-lg border bg-black px-4 py-2 text-white">
+        {vm.page}
       </span>
 
       <button
-        className="rounded-lg bg-black px-3 py-2 text-white disabled:opacity-40"
-        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        disabled={page === totalPages}
+        className="rounded-lg bg-black px-3 py-2 text-white"
+        onClick={vm.goNext}
+        disabled={vm.page === vm.totalPages}
         type="button"
+        aria-label="Próxima página"
       >
         ›
       </button>
@@ -146,11 +83,11 @@ export default function LogsPage() {
 
   return (
     <PageShell title="Logs" subtitle="Acompanhe todos os seus logs" toolbar={toolbar} footer={footer}>
-      {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
+      {vm.error && <p className="mb-4 text-sm text-red-600">{vm.error}</p>}
 
-      {loading ? (
+      {vm.loading ? (
         <div className="p-6">Carregando...</div>
-      ) : pagedItems.length === 0 ? (
+      ) : vm.pagedItems.length === 0 ? (
         <EmptyState title="Nada por aqui ainda..." />
       ) : (
         <div className="border-t" style={{ borderColor: "#D7D7D7" }}>
@@ -165,7 +102,7 @@ export default function LogsPage() {
               </thead>
 
               <tbody>
-                {pagedItems.map((l) => {
+                {vm.pagedItems.map((l) => {
                   const mod = moduleMeta[l.module];
 
                   return (
