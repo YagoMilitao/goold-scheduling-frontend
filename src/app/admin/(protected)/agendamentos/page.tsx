@@ -5,6 +5,7 @@ import PageShell from "@/components/ui/PageShell";
 import SchedulingSettingsModal from "@/components/ui/SchedulingSettingsModal";
 import DateFilter from "@/components/ui/DateFilterSelect";
 import useAdminAgendamentosViewModel from "./useAdminAgendamentosViewModel";
+import GuardLoading from "@/components/ui/GuardLoading";
 
 export default function AdminAgendamentosPage() {
   const vm = useAdminAgendamentosViewModel();
@@ -74,7 +75,7 @@ export default function AdminAgendamentosPage() {
         {vm.error ? <p className="mb-4 text-sm text-red-600">{vm.error}</p> : null}
 
         {vm.loading ? (
-          <div className="p-6">Carregando...</div>
+          <GuardLoading />
         ) : vm.viewItems.length === 0 ? (
           <div className="p-6">Nenhum agendamento encontrado</div>
         ) : (
