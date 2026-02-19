@@ -65,11 +65,9 @@ export default function AgendamentosPage() {
       >
         ‹
       </button>
-
       <span className="rounded-lg border bg-black px-2 py-2 text-white">
         {vm.page}
       </span>
-
       <button
         className="rounded-lg bg-black px-2 py-2 text-white"
         type="button"
