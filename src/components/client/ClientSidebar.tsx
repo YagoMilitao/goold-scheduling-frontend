@@ -29,7 +29,7 @@ export default function ClientSidebar() {
 
   const onLogout = () => {
     clearAuth();
-    router.replace("/login");
+    router.replace("/");
   };
 
   return (
